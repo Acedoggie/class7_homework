@@ -1,0 +1,67 @@
+#!/bin/bash
+# Use this for your user data (script from top to bottom)
+# install httpd (Linux 2 version)
+yum update -y
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
+
+# Get the IMDSv2 token
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+# Background the curl requests
+curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4 &> /tmp/local_ipv4 &
+curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/availability-zone &> /tmp/az &
+curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/network/interfaces/macs/ &> /tmp/macid &
+wait
+
+macid=$(cat /tmp/macid)
+local_ipv4=$(cat /tmp/local_ipv4)
+az=$(cat /tmp/az)
+vpc=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/network/interfaces/macs/${macid}/vpc-id)
+
+echo "
+<!doctype html>
+<html lang=\"en\" class=\"h-100\">
+<head>
+<title>Details for EC2 instance</title>
+</head>
+<body>
+<div>
+<h1>Be A Man Challenge 1.2</h1>
+<h1>Samurai Katana</h1>
+
+<br>
+<h2><b>Everest</b></h2>
+<br>
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg/500px-Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg" alt="Everest">
+<br>
+
+<p><b>"I, Theophilus Roy Lester, Thank Theo And Omar Fleming, For</b></p>
+<p><b>Teaching Me About Ec2s In Aws. One Step Closer To Escaping Keisha!</b></p>
+<p><b>With This Class, I Will Net $$$ MILLIONS $$$ Per Year!</p> 
+
+<br><p><b>I found my wife on a party yacht in Iibza! Her name is Ivanna Umpallot!</b></p>
+<br>
+<h2><b>Ibiza</b></h2>
+<br>
+<img src="https://www.yachtsibizacharters.com/images/slider4.jpg" alt="IbizaYacht">
+<br> 
+
+<br><p><b>HERE SHE IS!!! (Ukranian Miss Japan!!!)</b></p>
+<h2><b>Ivanna Umpallot</b></h2>
+<br>
+<img src="https://ichef.bbci.co.uk/news/480/cpsprodpb/11315/production/_132412407_gettyimages-502241776-1.jpg.webp" alt="MsUmpallot">
+<br>
+
+<br><p><b>Instance Name:</b> $(hostname -f) </p>
+<p><b>Instance Private Ip Address: </b> ${local_ipv4}</p>
+<p><b>Availability Zone: </b> ${az}</p>
+<p><b>Virtual Private Cloud (VPC):</b> ${vpc}</p>
+</div>
+</body>
+</html>
+" > /var/www/html/index.html
+
+# Clean up the temp files
+rm -f /tmp/local_ipv4 /tmp/az /tmp/macid
